@@ -13,6 +13,7 @@
 #include "common/PythonManager.h"
 #include "plugins/PluginManager.h"
 #include "CutterConfig.h"
+#include "CutterApplication.h"
 
 // Dialogs
 #include "dialogs/WelcomeDialog.h"
@@ -23,7 +24,7 @@
 #include "dialogs/AboutDialog.h"
 #include "dialogs/RenameDialog.h"
 #include "dialogs/preferences/PreferencesDialog.h"
-#include "dialogs/OpenFileDialog.h"
+#include "dialogs/MapFileDialog.h"
 #include "dialogs/AsyncTaskDialog.h"
 
 // Widgets Headers
@@ -139,6 +140,11 @@ void MainWindow::initUI()
     connect(ui->actionExtraGraph, &QAction::triggered, this, &MainWindow::addExtraGraph);
     connect(ui->actionExtraDisassembly, &QAction::triggered, this, &MainWindow::addExtraDisassembly);
     connect(ui->actionExtraHexdump, &QAction::triggered, this, &MainWindow::addExtraHexdump);
+    connect(ui->actionCommitChanges, &QAction::triggered, this, [this]() {
+        Core()->commitWriteCache();
+    });
+    ui->actionCommitChanges->setEnabled(false);
+    connect(Core(), &CutterCore::ioCacheChanged, ui->actionCommitChanges, &QAction::setEnabled);
 
     widgetTypeToConstructorMap.insert(GraphWidget::getWidgetType(), getNewInstance<GraphWidget>);
     widgetTypeToConstructorMap.insert(DisassemblyWidget::getWidgetType(), getNewInstance<DisassemblyWidget>);
@@ -527,7 +533,7 @@ void MainWindow::displayInitialOptionsDialog(const InitialOptions &options, bool
 
 void MainWindow::openProject(const QString &project_name)
 {
-    QString filename = core->cmd("Pi " + project_name);
+    QString filename = core->cmdRaw("Pi " + project_name);
     setFilename(filename.trimmed());
 
     core->openProject(project_name);
@@ -542,7 +548,7 @@ void MainWindow::finalizeOpen()
     refreshAll();
 
     // Add fortune message
-    core->message("\n" + core->cmd("fo"));
+    core->message("\n" + core->cmdRaw("fo"));
     showMaximized();
 
 
@@ -621,6 +627,24 @@ void MainWindow::setFilename(const QString &fn)
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
+
+    // Check if there are uncommitted changes
+    if (core->isIOCacheEnabled() && !core->cmdj("wcj").array().isEmpty()) {
+
+        QMessageBox::StandardButton ret = QMessageBox::question(this, APPNAME,
+                                                                tr("It seems that you have changes or patches that are not committed to the file.\n"
+                                                                "Do you want to commit them now?"),
+                                                                (QMessageBox::StandardButtons)(QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel));
+        if (ret == QMessageBox::Cancel) {
+            event->ignore();
+            return;
+        }
+
+        if (ret == QMessageBox::Save) {
+            core->commitWriteCache();
+        } 
+    }
+
     QMessageBox::StandardButton ret = QMessageBox::question(this, APPNAME,
                                                             tr("Do you really want to exit?\nSave your project before closing!"),
                                                             (QMessageBox::StandardButtons)(QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel));
@@ -1326,9 +1350,7 @@ void MainWindow::on_actionDefault_triggered()
 void MainWindow::on_actionNew_triggered()
 {
     // Create a new Cutter process
-    QProcess process(this);
-    process.setEnvironment(QProcess::systemEnvironment());
-    process.startDetached(qApp->applicationFilePath());
+    static_cast<CutterApplication*>(qApp)->launchNewInstance();
 }
 
 void MainWindow::on_actionSave_triggered()
@@ -1370,9 +1392,9 @@ void MainWindow::on_actionRun_Script_triggered()
  * @brief MainWindow::on_actionOpen_triggered
  * Open a file as in "load (add) a file in current session".
  */
-void MainWindow::on_actionOpen_triggered()
+void MainWindow::on_actionMap_triggered()
 {
-    OpenFileDialog dialog(this);
+    MapFileDialog dialog(this);
     dialog.exec();
 }
 
@@ -1528,6 +1550,8 @@ void MainWindow::on_actionExport_as_code_triggered()
     tempConfig.set("io.va", false);
     QTextStream fileOut(&file);
     QString &cmd = cmdMap[dialog.selectedNameFilter()];
+
+    // Use cmd because cmdRaw would not handle such input
     fileOut << Core()->cmd(cmd + " $s @ 0");
 }
 

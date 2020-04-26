@@ -459,7 +459,12 @@ void DisassemblyContextMenu::aboutToShowSlot()
 
     actionAnalyzeFunction.setVisible(true);
 
-    QString comment = Core()->cmd("CC." + RAddressString(offset));
+    // Show the option to remove a defined string only if a string is defined in this address
+    QString stringDefinition = Core()->cmdRawAt("Cs.", offset);
+    actionSetAsStringRemove.setVisible(!stringDefinition.isEmpty());
+
+    QString comment = Core()->cmdRawAt("CC.", offset);
+
     if (comment.isNull() || comment.isEmpty()) {
         actionDeleteComment.setVisible(false);
         actionAddComment.setText(tr("Add Comment"));
@@ -650,6 +655,9 @@ QKeySequence DisassemblyContextMenu::getUndefineFunctionSequence() const
 
 void DisassemblyContextMenu::on_actionEditInstruction_triggered()
 {
+    if (!ioModesController.prepareForWriting()) {
+        return;
+    }
     EditInstructionDialog e(EDIT_TEXT, this);
     e.setWindowTitle(tr("Edit Instruction at %1").arg(RAddressString(offset)));
 
@@ -662,30 +670,16 @@ void DisassemblyContextMenu::on_actionEditInstruction_triggered()
         QString userInstructionOpcode = e.getInstruction();
         if (userInstructionOpcode != oldInstructionOpcode) {
             Core()->editInstruction(offset, userInstructionOpcode);
-
-            // Check if the write failed
-            auto newInstructionBytes = Core()->getInstructionBytes(offset);
-            if (newInstructionBytes == oldInstructionBytes) {
-                if (!writeFailed()) {
-                    Core()->editInstruction(offset, userInstructionOpcode);
-                }
-            }
         }
     }
 }
 
 void DisassemblyContextMenu::on_actionNopInstruction_triggered()
 {
-    QString oldBytes = Core()->getInstructionBytes(offset);
-
-    Core()->nopInstruction(offset);
-
-    QString newBytes = Core()->getInstructionBytes(offset);
-    if (oldBytes == newBytes) {
-        if (!writeFailed()) {
-            Core()->nopInstruction(offset);
-        }
+    if (!ioModesController.prepareForWriting()) {
+        return;
     }
+    Core()->nopInstruction(offset);
 }
 
 void DisassemblyContextMenu::showReverseJmpQuery()
@@ -707,20 +701,17 @@ void DisassemblyContextMenu::showReverseJmpQuery()
 
 void DisassemblyContextMenu::on_actionJmpReverse_triggered()
 {
-    QString oldBytes = Core()->getInstructionBytes(offset);
-
-    Core()->jmpReverse(offset);
-
-    QString newBytes = Core()->getInstructionBytes(offset);
-    if (oldBytes == newBytes) {
-        if (!writeFailed()) {
-            Core()->jmpReverse(offset);
-        }
+    if (!ioModesController.prepareForWriting()) {
+        return;
     }
+    Core()->jmpReverse(offset);
 }
 
 void DisassemblyContextMenu::on_actionEditBytes_triggered()
 {
+    if (!ioModesController.prepareForWriting()) {
+        return;
+    }
     EditInstructionDialog e(EDIT_BYTES, this);
     e.setWindowTitle(tr("Edit Bytes at %1").arg(RAddressString(offset)));
 
@@ -731,36 +722,8 @@ void DisassemblyContextMenu::on_actionEditBytes_triggered()
         QString bytes = e.getInstruction();
         if (bytes != oldBytes) {
             Core()->editBytes(offset, bytes);
-
-            QString newBytes = Core()->getInstructionBytes(offset);
-            if (oldBytes == newBytes) {
-                if (!writeFailed()) {
-                    Core()->editBytes(offset, bytes);
-                }
-            }
         }
     }
-}
-
-bool DisassemblyContextMenu::writeFailed()
-{
-    QMessageBox msgBox;
-    msgBox.setIcon(QMessageBox::Icon::Critical);
-    msgBox.setWindowTitle(tr("Write error"));
-    msgBox.setText(
-        tr("Unable to complete write operation. Consider opening in write mode. \n\nWARNING: In write mode any changes will be committed to disk"));
-    msgBox.addButton(tr("OK"), QMessageBox::NoRole);
-    QAbstractButton *reopenButton = msgBox.addButton(tr("Reopen in write mode and try again"),
-                                                     QMessageBox::YesRole);
-
-    msgBox.exec();
-
-    if (msgBox.clickedButton() == reopenButton) {
-        Core()->cmd("oo+");
-        return false;
-    }
-
-    return true;
 }
 
 void DisassemblyContextMenu::on_actionCopy_triggered()
@@ -879,7 +842,7 @@ void DisassemblyContextMenu::on_actionRenameUsedHere_triggered()
     if (dialog.exec()) {
         QString newName = dialog.getName().trimmed();
         if (!newName.isEmpty()) {
-            Core()->cmd("an " + newName + " @ " + QString::number(offset));
+            Core()->cmdRawAt(QString("an %1").arg(newName), offset);
 
             if (type == ThingUsedHere::Type::Address || type == ThingUsedHere::Type::Flag) {
                 Core()->triggerFlagsChanged();
@@ -1044,7 +1007,7 @@ void DisassemblyContextMenu::on_actionEditFunction_triggered()
         stackSizeText.sprintf("%d", fcn->stack);
         dialog.setStackSizeText(stackSizeText);
 
-        QStringList callConList = Core()->cmd("afcl").split("\n");
+        QStringList callConList = Core()->cmdRaw("afcl").split("\n");
         callConList.removeLast();
         dialog.setCallConList(callConList);
         dialog.setCallConSelected(fcn->cc);
@@ -1057,7 +1020,7 @@ void DisassemblyContextMenu::on_actionEditFunction_triggered()
             fcn->addr = Core()->math(new_start_addr);
             QString new_stack_size = dialog.getStackSizeText();
             fcn->stack = int(Core()->math(new_stack_size));
-            Core()->cmd("afc " + dialog.getCallConSelected());
+            Core()->cmdRaw("afc " + dialog.getCallConSelected());
             emit Core()->functionsChanged();
         }
     }
