@@ -109,6 +109,7 @@ static const QHash<QString, QVariant> asmOptions = {
     { "asm.lines.fcn",      true },
     { "asm.flags.offset",   false },
     { "asm.emu",            false },
+    { "emu.str",            false},
     { "asm.cmt.right",      true },
     { "asm.cmt.col",        35 },
     { "asm.var.summary",    false },
@@ -664,7 +665,7 @@ QStringList Configuration::getAvailableTranslations()
         }
     }
 
-    QStringList fileNames = fileNamesSet.toList();
+    QStringList fileNames = fileNamesSet.values();
     std::sort(fileNames.begin(), fileNames.end());
     QStringList languages;
     QString currLanguageName;

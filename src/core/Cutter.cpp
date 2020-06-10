@@ -240,32 +240,47 @@ RCoreLocked CutterCore::core()
     return RCoreLocked(this);
 }
 
-QVector<QDir> CutterCore::getCutterRCDirectories() const
+QDir CutterCore::getCutterRCDefaultDirectory() const
 {
-    QVector<QDir> result;
-    result.push_back(QDir::home());
+    return QStandardPaths::writableLocation(QStandardPaths::AppConfigLocation);
+}
+
+QVector<QString> CutterCore::getCutterRCFilePaths() const
+{
+    QVector<QString> result;
+    result.push_back(QFileInfo(QDir::home(), ".cutterrc").absoluteFilePath());
     QStringList locations = QStandardPaths::standardLocations(QStandardPaths::AppConfigLocation);
     for (auto &location : locations) { 
-        result.push_back(QDir(location)); 
+        result.push_back(QFileInfo(QDir(location), ".cutterrc").absoluteFilePath());
     }
+    result.push_back(QFileInfo(getCutterRCDefaultDirectory(), "rc").absoluteFilePath()); // File in config editor is from this path
     return result;
 }
 
 void CutterCore::loadCutterRC()
 {
     CORE_LOCK();
-    
-    const auto result = getCutterRCDirectories();
-    for(auto &dir : result){
-        if(!dir.exists())continue;
-        auto cutterRCFileInfo = QFileInfo(dir, ".cutterrc");
-        auto path = cutterRCFileInfo.absoluteFilePath();
-        if (!cutterRCFileInfo.isFile()) {
+    const auto result = getCutterRCFilePaths();
+    for(auto &cutterRCFilePath : result){
+        auto cutterRCFileInfo = QFileInfo(cutterRCFilePath);
+        if (!cutterRCFileInfo.exists() || !cutterRCFileInfo.isFile()) {
             continue;
         }
-        qInfo() << "Loading initialization file from" << path;
-        r_core_cmd_file(core, path.toUtf8().constData());
+        qInfo() << "Loading initialization file from " << cutterRCFilePath;
+        r_core_cmd_file(core, cutterRCFilePath.toUtf8().constData());
     }
+}
+
+void CutterCore::loadDefaultCutterRC()
+{
+    CORE_LOCK();
+    auto cutterRCFilePath = QFileInfo(getCutterRCDefaultDirectory(), "rc").absoluteFilePath();
+    const auto cutterRCFileInfo = QFileInfo(cutterRCFilePath);
+    if (!cutterRCFileInfo.exists() || !cutterRCFileInfo.isFile()) {
+        return;
+    }
+    qInfo() << "Loading initialization file from " << cutterRCFilePath;
+    r_core_cmd_file(core, cutterRCFilePath.toUtf8().constData());
 }
 
 
@@ -590,9 +605,6 @@ bool CutterCore::loadFile(QString path, ut64 baddr, ut64 mapaddr, int perms, int
     if (perms & R_PERM_W) {
         r_core_cmd0 (core, "omfg+w");
     }
-
-    ut64 hashLimit = getConfigut64("cfg.hashlimit");
-    r_bin_file_compute_hashes(core->bin, hashLimit);
 
     fflush(stdout);
     return true;
@@ -984,7 +996,7 @@ QString CutterCore::getConfigDescription(const char *k)
 {
     CORE_LOCK();
     RConfigNode *node = r_config_node_get (core->config, k);
-    return QString(node->desc);
+    return node ? QString(node->desc) : QString("Unrecognized configuration key");
 }
 
 void CutterCore::triggerRefreshAll()
@@ -3771,9 +3783,15 @@ BasicInstructionHighlighter* CutterCore::getBIHighlighter()
 
 void CutterCore::setIOCache(bool enabled)
 {
+    if (enabled) {
+        // disable write mode when cache is enabled
+        setWriteMode(false);
+    }
     setConfig("io.cache", enabled);
     this->iocache = enabled;
+
     emit ioCacheChanged(enabled);
+    emit ioModeChanged();
 }
 
 bool CutterCore::isIOCacheEnabled() const
@@ -3783,8 +3801,11 @@ bool CutterCore::isIOCacheEnabled() const
 
 void CutterCore::commitWriteCache()
 {
+    // Temporarily disable cache mode
+    TempConfig tempConfig;
+    tempConfig.set("io.cache", false);
     if (!isWriteModeEnabled()) {
-        setWriteMode (true);
+        cmdRaw("oo+");
         cmdRaw("wci");
         cmdRaw("oo");
     } else {
@@ -3797,8 +3818,8 @@ void CutterCore::setWriteMode(bool enabled)
 {
     bool writeModeState = isWriteModeEnabled();
 
-    if (writeModeState == enabled) {
-        // New mode is the same as current. Do nothing.
+    if (writeModeState == enabled && !this->iocache) {
+        // New mode is the same as current and IO Cache is disabled. Do nothing.
         return;
     }
     
@@ -3809,7 +3830,11 @@ void CutterCore::setWriteMode(bool enabled)
     } else {
         cmdRaw("oo");
     }
+    // Disable cache mode because we specifically set write or
+    // read-only modes.
+    setIOCache(false);
     writeModeChanged (enabled);
+    emit ioModeChanged();
 }
 
 bool CutterCore::isWriteModeEnabled()
