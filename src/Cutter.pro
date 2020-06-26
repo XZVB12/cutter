@@ -283,6 +283,8 @@ CUTTER_R2GHIDRA_STATIC {
     SOURCES += $$R2GHIDRA_SOURCE/cutter-plugin/R2GhidraDecompiler.cpp
     HEADERS += $$R2GHIDRA_SOURCE/cutter-plugin/R2GhidraDecompiler.h
     INCLUDEPATH += $$R2GHIDRA_SOURCE/cutter-plugin
+    LIBS += -L$$R2GHIDRA_INSTALL_PATH -lcore_ghidra -ldelayimp
+    QMAKE_LFLAGS += /delayload:core_ghidra.dll
 }
 
 QMAKE_SUBSTITUTES += CutterConfig.h.in
@@ -425,7 +427,8 @@ SOURCES += \
     common/SettingsUpgrade.cpp \
     dialogs/LayoutManager.cpp \
     common/CutterLayout.cpp \
-    widgets/GraphHorizontalAdapter.cpp
+    widgets/GraphHorizontalAdapter.cpp \
+    common/ResourcePaths.cpp
 
 GRAPHVIZ_SOURCES = \
     widgets/GraphvizLayout.cpp
@@ -579,7 +582,8 @@ HEADERS  += \
     common/CutterLayout.h \
     common/BinaryTrees.h \
     common/LinkedListPool.h \
-    widgets/GraphHorizontalAdapter.h
+    widgets/GraphHorizontalAdapter.h \
+    common/ResourcePaths.h
 
 GRAPHVIZ_HEADERS = widgets/GraphvizLayout.h
 
