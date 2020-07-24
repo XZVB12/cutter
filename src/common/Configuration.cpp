@@ -115,7 +115,7 @@ static const QHash<QString, QVariant> asmOptions = {
     { "asm.var.summary",    false },
     { "asm.bytes",          false },
     { "asm.size",           false },
-    { "asm.bytespace",      false },
+    { "asm.bytes.space",    false },
     { "asm.lbytes",         true },
     { "asm.nbytes",         10 },
     { "asm.syntax",         "intel" },
@@ -123,7 +123,7 @@ static const QHash<QString, QVariant> asmOptions = {
     { "asm.bb.line",        false },
     { "asm.capitalize",     false },
     { "asm.var.sub",        true },
-    { "asm.var.subonly",    true },
+    { "asm.sub.varonly",    true },
     { "asm.tabs",           8 },
     { "asm.tabs.off",       5 },
     { "asm.marks",          false },
@@ -752,7 +752,7 @@ void Configuration::setGraphSpacing(QPoint blockSpacing, QPoint edgeSpacing)
 
 QPoint Configuration::getGraphBlockSpacing()
 {
-    return s.value("graph.blockSpacing", QPoint(10, 40)).value<QPoint>();
+    return s.value("graph.blockSpacing", QPoint(20, 40)).value<QPoint>();
 }
 
 QPoint Configuration::getGraphEdgeSpacing()

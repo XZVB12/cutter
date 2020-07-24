@@ -22,7 +22,6 @@
 #include "dialogs/SaveProjectDialog.h"
 #include "dialogs/CommentsDialog.h"
 #include "dialogs/AboutDialog.h"
-#include "dialogs/RenameDialog.h"
 #include "dialogs/preferences/PreferencesDialog.h"
 #include "dialogs/MapFileDialog.h"
 #include "dialogs/AsyncTaskDialog.h"
@@ -70,6 +69,8 @@
 #include "widgets/HexdumpWidget.h"
 #include "widgets/DecompilerWidget.h"
 #include "widgets/HexWidget.h"
+#include "widgets/R2GraphWidget.h"
+#include "widgets/CallGraph.h"
 
 // Qt Headers
 #include <QApplication>
@@ -372,7 +373,10 @@ void MainWindow::initDocks()
         segmentsDock = new SegmentsWidget(this),
         symbolsDock = new SymbolsWidget(this),
         vTablesDock = new VTablesWidget(this),
-        zignaturesDock = new ZignaturesWidget(this)
+        zignaturesDock = new ZignaturesWidget(this),
+        r2GraphDock = new R2GraphWidget(this),
+        callGraphDock = new CallGraphWidget(this, false),
+        globalCallGraphDock = new CallGraphWidget(this, true),
     };
 
     auto makeActionList = [this](QList<CutterDockWidget *> docks) {
@@ -591,6 +595,11 @@ void MainWindow::finalizeOpen()
     // Add fortune message
     core->message("\n" + core->cmdRaw("fo"));
 
+    // hide all docks before showing window to avoid false positive for refreshDeferrer
+    for (auto dockWidget : dockWidgets) {
+        dockWidget->hide();
+    }
+
     QSettings settings;
     auto geometry = settings.value("geometry").toByteArray();
     if (!geometry.isEmpty()) {
@@ -603,16 +612,9 @@ void MainWindow::finalizeOpen()
     Config()->adjustColorThemeDarkness();
     setViewLayout(getViewLayout(LAYOUT_DEFAULT));
 
+
     // Set focus to disasm or graph widget
-
-    // Use for loop to cover cases when main disasm/graph
-    // (MainWindow::disassemblyDock and MainWindow::graphDock)
-    // widgets are invisible but extra ones are visible
-
-    // Graph with function in it has focus priority over DisasmWidget
-    // if there are both graph and disasm.
-    // Otherwise Disasm has focus priority over Graph
-
+    // Graph with function in it has focus priority over DisasmWidget.
     // If there are no graph/disasm widgets focus on MainWindow
 
     setFocus();
@@ -620,20 +622,17 @@ void MainWindow::finalizeOpen()
     for (auto dockWidget : dockWidgets) {
         const QString className = dockWidget->metaObject()->className();
         auto graphWidget = qobject_cast<GraphWidget *>(dockWidget);
-        if (graphWidget && !dockWidget->visibleRegion().isNull()) {
+        if (graphWidget && dockWidget->isVisibleToUser()) {
             graphContainsFunc = !graphWidget->getGraphView()->getBlocks().empty();
             if (graphContainsFunc) {
-                dockWidget->widget()->setFocus();
+                dockWidget->raiseMemoryWidget();
                 break;
             }
         }
         auto disasmWidget = qobject_cast<DisassemblyWidget *>(dockWidget);
-        if (disasmWidget && !dockWidget->visibleRegion().isNull()) {
-            if (!graphContainsFunc) {
-                disasmWidget->setFocus();
-            } else {
-                break;
-            }
+        if (disasmWidget && dockWidget->isVisibleToUser()) {
+            disasmWidget->raiseMemoryWidget();
+            // continue looping in case there is a graph wiget
         }
     }
 }
@@ -823,6 +822,9 @@ void MainWindow::restoreDocks()
     tabifyDockWidget(dashboardDock, memoryMapDock);
     tabifyDockWidget(dashboardDock, breakpointDock);
     tabifyDockWidget(dashboardDock, registerRefsDock);
+    tabifyDockWidget(dashboardDock, r2GraphDock);
+    tabifyDockWidget(dashboardDock, callGraphDock);
+    tabifyDockWidget(dashboardDock, globalCallGraphDock);
     for (const auto &it : dockWidgets) {
         // Check whether or not current widgets is graph, hexdump or disasm
         if (isExtraMemoryWidget(it)) {
@@ -924,10 +926,26 @@ void MainWindow::showMemoryWidget(MemoryWidgetType type)
 QMenu *MainWindow::createShowInMenu(QWidget *parent, RVA address)
 {
     QMenu *menu = new QMenu(parent);
+    // Memory dock widgets
     for (auto &dock : dockWidgets) {
         if (auto memoryWidget = qobject_cast<MemoryDockWidget *>(dock)) {
             QAction *action = new QAction(memoryWidget->windowTitle(), menu);
-            connect(action, &QAction::triggered, this, [this, memoryWidget, address]() {
+            connect(action, &QAction::triggered, this, [memoryWidget, address]() {
+                memoryWidget->getSeekable()->seek(address);
+                memoryWidget->raiseMemoryWidget();
+            });
+            menu->addAction(action);
+        }
+    }
+    menu->addSeparator();
+    // Rest of the AddressableDockWidgets that weren't added already
+    for (auto &dock : dockWidgets) {
+        if (auto memoryWidget = qobject_cast<AddressableDockWidget *>(dock)) {
+            if (qobject_cast<MemoryDockWidget *>(dock)) {
+                continue;
+            }
+            QAction *action = new QAction(memoryWidget->windowTitle(), menu);
+            connect(action, &QAction::triggered, this, [memoryWidget, address]() {
                 memoryWidget->getSeekable()->seek(address);
                 memoryWidget->raiseMemoryWidget();
             });
@@ -1323,6 +1341,7 @@ void MainWindow::setViewLayout(const CutterLayout &layout)
             dock->deserializeViewProperties({}); // call with empty properties to reset the widget
             newDocks.push_back(dock);
         }
+        dock->ignoreVisibilityStatus(true);
     }
 
     if (!isDefault) {
@@ -1345,6 +1364,12 @@ void MainWindow::setViewLayout(const CutterLayout &layout)
             showZenDocks();
         }
     }
+
+    for (auto dock : dockWidgets) {
+        dock->ignoreVisibilityStatus(false);
+    }
+    lastSyncMemoryWidget = nullptr;
+    lastMemoryWidget = nullptr;
 }
 
 void MainWindow::loadLayouts(QSettings &settings)
@@ -1407,14 +1432,6 @@ void MainWindow::on_actionLockUnlock_triggered()
         }
         ui->actionLockUnlock->setIcon(QIcon(":/unlock"));
     }
-}
-
-void MainWindow::on_actionFunctionsRename_triggered()
-{
-    RenameDialog r(this);
-    // Get function based on click position
-    //r->setFunctionName(fcn_name);
-    r.exec();
 }
 
 void MainWindow::on_actionDefault_triggered()

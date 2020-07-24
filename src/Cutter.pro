@@ -3,8 +3,8 @@ TEMPLATE = app
 TARGET = Cutter
 
 CUTTER_VERSION_MAJOR = 1
-CUTTER_VERSION_MINOR = 10
-CUTTER_VERSION_PATCH = 3
+CUTTER_VERSION_MINOR = 11
+CUTTER_VERSION_PATCH = 0
 
 VERSION = $${CUTTER_VERSION_MAJOR}.$${CUTTER_VERSION_MINOR}.$${CUTTER_VERSION_PATCH}
 
@@ -18,7 +18,10 @@ TRANSLATIONS += translations/cutter_ar.ts \
                 translations/cutter_es.ts \
                 translations/cutter_fa.ts \
                 translations/cutter_fr.ts \
+                translations/cutter_he.ts \
+                translations/cutter_hi.ts \
                 translations/cutter_it.ts \
+                translations/cutter_ja.ts \
                 translations/cutter_nl.ts \
                 translations/cutter_pt.ts \
                 translations/cutter_ro.ts \
@@ -302,7 +305,6 @@ SOURCES += \
     dialogs/CommentsDialog.cpp \
     dialogs/EditInstructionDialog.cpp \
     dialogs/FlagDialog.cpp \
-    dialogs/RenameDialog.cpp \
     dialogs/RemoteDebugDialog.cpp \
     dialogs/NativeDebugDialog.cpp \
     dialogs/XrefsDialog.cpp \
@@ -428,7 +430,12 @@ SOURCES += \
     dialogs/LayoutManager.cpp \
     common/CutterLayout.cpp \
     widgets/GraphHorizontalAdapter.cpp \
-    common/ResourcePaths.cpp
+    common/ResourcePaths.cpp \
+    widgets/CutterGraphView.cpp \
+    widgets/SimpleTextGraphView.cpp \
+    widgets/R2GraphWidget.cpp \
+    widgets/CallGraph.cpp \
+    widgets/AddressableDockWidget.cpp
 
 GRAPHVIZ_SOURCES = \
     widgets/GraphvizLayout.cpp
@@ -448,7 +455,6 @@ HEADERS  += \
     dialogs/CommentsDialog.h \
     dialogs/EditInstructionDialog.h \
     dialogs/FlagDialog.h \
-    dialogs/RenameDialog.h \
     dialogs/RemoteDebugDialog.h \
     dialogs/NativeDebugDialog.h \
     dialogs/XrefsDialog.h \
@@ -583,7 +589,12 @@ HEADERS  += \
     common/BinaryTrees.h \
     common/LinkedListPool.h \
     widgets/GraphHorizontalAdapter.h \
-    common/ResourcePaths.h
+    common/ResourcePaths.h \
+    widgets/CutterGraphView.h \
+    widgets/SimpleTextGraphView.h \
+    widgets/R2GraphWidget.h \
+    widgets/CallGraph.h \
+    widgets/AddressableDockWidget.h
 
 GRAPHVIZ_HEADERS = widgets/GraphvizLayout.h
 
@@ -597,7 +608,6 @@ FORMS    += \
     dialogs/CommentsDialog.ui \
     dialogs/EditInstructionDialog.ui \
     dialogs/FlagDialog.ui \
-    dialogs/RenameDialog.ui \
     dialogs/RemoteDebugDialog.ui \
     dialogs/NativeDebugDialog.ui \
     dialogs/XrefsDialog.ui \
@@ -651,7 +661,8 @@ FORMS    += \
     widgets/ColorPicker.ui \
     dialogs/preferences/ColorThemeEditDialog.ui \
     widgets/ListDockWidget.ui \
-    dialogs/LayoutManager.ui
+    dialogs/LayoutManager.ui \
+    widgets/R2GraphWidget.ui
 
 RESOURCES += \
     resources.qrc \
