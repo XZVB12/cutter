@@ -12,8 +12,9 @@ EditVariablesDialog::EditVariablesDialog(RVA offset, QString initialVar, QWidget
     ui(new Ui::EditVariablesDialog)
 {
     ui->setupUi(this);
-    connect(ui->buttonBox, SIGNAL(accepted()), this, SLOT(applyFields()));
-    connect(ui->dropdownLocalVars, SIGNAL(currentIndexChanged(int)), SLOT(updateFields()));
+    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &EditVariablesDialog::applyFields);
+    connect<void(QComboBox::*)(int)>(ui->dropdownLocalVars, &QComboBox::currentIndexChanged,
+                                     this, &EditVariablesDialog::updateFields);
 
     QString fcnName = Core()->cmdRawAt("afn.", offset).trimmed();
     setWindowTitle(tr("Set Variable Types for Function: %1").arg(fcnName));

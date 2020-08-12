@@ -2,9 +2,9 @@
 #include "ui_MainWindow.h"
 
 // Common Headers
+#include "common/AnalTask.h"
 #include "common/BugReporting.h"
 #include "common/Highlighter.h"
-#include "common/HexAsciiHighlighter.h"
 #include "common/Helpers.h"
 #include "common/SvgIconEngine.h"
 #include "common/ProgressIndicator.h"
@@ -166,34 +166,33 @@ void MainWindow::initUI()
 
     // Period goes to command entry
     QShortcut *cmd_shortcut = new QShortcut(QKeySequence(Qt::Key_Period), this);
-    connect(cmd_shortcut, SIGNAL(activated()), consoleDock, SLOT(focusInputLineEdit()));
+    connect(cmd_shortcut, &QShortcut::activated, consoleDock, &ConsoleWidget::focusInputLineEdit);
 
     // G and S goes to goto entry
     QShortcut *goto_shortcut = new QShortcut(QKeySequence(Qt::Key_G), this);
-    connect(goto_shortcut, SIGNAL(activated()), this->omnibar, SLOT(setFocus()));
+    connect(goto_shortcut, &QShortcut::activated, this->omnibar, [this](){ this->omnibar->setFocus(); });
     QShortcut *seek_shortcut = new QShortcut(QKeySequence(Qt::Key_S), this);
-    connect(seek_shortcut, SIGNAL(activated()), this->omnibar, SLOT(setFocus()));
+    connect(seek_shortcut, &QShortcut::activated, this->omnibar, [this](){ this->omnibar->setFocus(); });
     QShortcut *seek_to_func_end_shortcut = new QShortcut(QKeySequence(Qt::Key_Dollar), this);
-    connect(seek_to_func_end_shortcut, SIGNAL(activated()), SLOT(seekToFunctionLastInstruction()));
+    connect(seek_to_func_end_shortcut, &QShortcut::activated, this, &MainWindow::seekToFunctionLastInstruction);
     QShortcut *seek_to_func_start_shortcut = new QShortcut(QKeySequence(Qt::Key_AsciiCircum), this);
-    connect(seek_to_func_start_shortcut, SIGNAL(activated()), SLOT(seekToFunctionStart()));
+    connect(seek_to_func_start_shortcut, &QShortcut::activated, this, &MainWindow::seekToFunctionStart);
 
     QShortcut *refresh_shortcut = new QShortcut(QKeySequence(QKeySequence::Refresh), this);
-    connect(refresh_shortcut, SIGNAL(activated()), this, SLOT(refreshAll()));
+    connect(refresh_shortcut, &QShortcut::activated, this, &MainWindow::refreshAll);
 
-    connect(ui->actionZoomIn, SIGNAL(triggered()), this, SLOT(onZoomIn()));
-    connect(ui->actionZoomOut, SIGNAL(triggered()), this, SLOT(onZoomOut()));
-    connect(ui->actionZoomReset, SIGNAL(triggered()), this, SLOT(onZoomReset()));
+    connect(ui->actionZoomIn, &QAction::triggered, this, &MainWindow::onZoomIn);
+    connect(ui->actionZoomOut, &QAction::triggered, this, &MainWindow::onZoomOut);
+    connect(ui->actionZoomReset, &QAction::triggered, this, &MainWindow::onZoomReset);
 
-    connect(core, SIGNAL(projectSaved(bool, const QString &)), this, SLOT(projectSaved(bool,
-                                                                                       const QString &)));
+    connect(core, &CutterCore::projectSaved, this, &MainWindow::projectSaved);
 
     connect(core, &CutterCore::toggleDebugView, this, &MainWindow::toggleDebugView);
 
-    connect(core, SIGNAL(newMessage(const QString &)),
-            this->consoleDock, SLOT(addOutput(const QString &)));
-    connect(core, SIGNAL(newDebugMessage(const QString &)),
-            this->consoleDock, SLOT(addDebugOutput(const QString &)));
+    connect(core, &CutterCore::newMessage,
+            this->consoleDock, &ConsoleWidget::addOutput);
+    connect(core, &CutterCore::newDebugMessage,
+            this->consoleDock, &ConsoleWidget::addDebugOutput);
 
     connect(core, &CutterCore::showMemoryWidgetRequested,
             this, static_cast<void(MainWindow::*)()>(&MainWindow::showMemoryWidget));
@@ -233,6 +232,7 @@ void MainWindow::initUI()
   
     connect(ui->actionSaveLayout, &QAction::triggered, this, &MainWindow::saveNamedLayout);
     connect(ui->actionManageLayouts, &QAction::triggered, this, &MainWindow::manageLayouts);
+    connect(ui->actionDocumentation, &QAction::triggered, this, &MainWindow::documentationClicked);
 
     /* Setup plugins interfaces */
     for (auto &plugin : Plugins()->getPlugins()) {
@@ -245,6 +245,10 @@ void MainWindow::initUI()
 
     enableDebugWidgetsMenu(false);
     readSettings();
+
+    // Display tooltip for the Analyze Program action
+    ui->actionAnalyze->setToolTip("Analyze the program using radare2's \"aaa\" command");
+    ui->menuFile->setToolTipsVisible(true);
 }
 
 void MainWindow::initToolBar()
@@ -320,7 +324,7 @@ void MainWindow::initToolBar()
     this->visualNavbar->setMovable(false);
     addToolBarBreak(Qt::TopToolBarArea);
     addToolBar(visualNavbar);
-    QObject::connect(configuration, &Configuration::colorsUpdated, [this]() {
+    QObject::connect(configuration, &Configuration::colorsUpdated, this, [this]() {
         this->visualNavbar->updateGraphicsScene();
     });
     QObject::connect(configuration, &Configuration::interfaceThemeChanged, this, &MainWindow::chooseThemeIcons);
@@ -620,7 +624,6 @@ void MainWindow::finalizeOpen()
     setFocus();
     bool graphContainsFunc = false;
     for (auto dockWidget : dockWidgets) {
-        const QString className = dockWidget->metaObject()->className();
         auto graphWidget = qobject_cast<GraphWidget *>(dockWidget);
         if (graphWidget && dockWidget->isVisibleToUser()) {
             graphContainsFunc = !graphWidget->getGraphView()->getBlocks().empty();
@@ -1577,14 +1580,34 @@ void MainWindow::on_actionIssue_triggered()
     openIssue();
 }
 
+void MainWindow::documentationClicked()
+{
+    QDesktopServices::openUrl(QUrl("https://cutter.re/docs/user-docs"));
+}
+
 void MainWindow::on_actionRefresh_Panels_triggered()
 {
     this->refreshAll();
 }
 
+/**
+ * @brief A signal that creates an AsyncTask to re-analyze the current file
+ */
 void MainWindow::on_actionAnalyze_triggered()
 {
-    // TODO: implement this, but do NOT open InitialOptionsDialog!!
+    auto *analTask = new AnalTask();
+    InitialOptions options;
+    options.analCmd = { {"aaa", "Auto analysis"} };
+    analTask->setOptions(options);
+    AsyncTask::Ptr analTaskPtr(analTask);
+
+    auto *taskDialog = new AsyncTaskDialog(analTaskPtr);
+    taskDialog->setInterruptOnClose(true);
+    taskDialog->setAttribute(Qt::WA_DeleteOnClose);
+    taskDialog->show();
+    connect(analTask, &AnalTask::finished, this, &MainWindow::refreshAll);
+
+    Core()->getAsyncTaskManager()->start(analTaskPtr);
 }
 
 void MainWindow::on_actionImportPDB_triggered()

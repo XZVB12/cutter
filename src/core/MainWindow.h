@@ -150,6 +150,8 @@ public slots:
 
     void on_actionTabs_triggered();
 
+    void on_actionAnalyze_triggered();
+
     void lockUnlock_Docks(bool what);
 
     void on_actionRun_Script_triggered();
@@ -162,6 +164,7 @@ public slots:
 private slots:
     void on_actionAbout_triggered();
     void on_actionIssue_triggered();
+    void documentationClicked();
     void addExtraGraph();
     void addExtraHexdump();
     void addExtraDisassembly();
@@ -191,8 +194,6 @@ private slots:
     void on_actionRefresh_contents_triggered();
 
     void on_actionPreferences_triggered();
-
-    void on_actionAnalyze_triggered();
 
     void on_actionImportPDB_triggered();
 
@@ -225,7 +226,6 @@ private:
     QString filename;
     std::unique_ptr<Ui::MainWindow> ui;
     Highlighter *highlighter;
-    AsciiHighlighter *hex_highlighter;
     VisualNavbar *visualNavbar;
     Omnibar *omnibar;
     ProgressIndicator *tasksProgressIndicator;
