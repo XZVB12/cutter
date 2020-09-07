@@ -121,8 +121,8 @@ public:
     QString getUniqueObjectName(const QString &widgetType) const;
     void showMemoryWidget();
     void showMemoryWidget(MemoryWidgetType type);
-
-    QMenu *createShowInMenu(QWidget *parent, RVA address);
+    enum class AddressTypeHint { Function, Data, Unknown };
+    QMenu *createShowInMenu(QWidget *parent, RVA address, AddressTypeHint addressType = AddressTypeHint::Unknown);
     void setCurrentMemoryWidget(MemoryDockWidget* memoryWidget);
     MemoryDockWidget* getLastMemoryWidget();
 
@@ -168,6 +168,7 @@ private slots:
     void addExtraGraph();
     void addExtraHexdump();
     void addExtraDisassembly();
+    void addExtraDecompiler();
 
     void on_actionRefresh_Panels_triggered();
 
@@ -236,7 +237,6 @@ private:
 
     QList<CutterDockWidget *> dockWidgets;
     QList<CutterDockWidget *> pluginDocks;
-    DecompilerWidget   *decompilerDock = nullptr;
     OverviewWidget     *overviewDock = nullptr;
     QAction *actionOverview = nullptr;
     EntrypointWidget   *entrypointDock = nullptr;

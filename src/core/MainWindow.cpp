@@ -143,6 +143,7 @@ void MainWindow::initUI()
     disassemblyContextMenuExtensions = new QMenu(tr("Plugins"), this);
     addressableContextMenuExtensions = new QMenu(tr("Plugins"), this);
 
+    connect(ui->actionExtraDecompiler, &QAction::triggered, this, &MainWindow::addExtraDecompiler);
     connect(ui->actionExtraGraph, &QAction::triggered, this, &MainWindow::addExtraGraph);
     connect(ui->actionExtraDisassembly, &QAction::triggered, this, &MainWindow::addExtraDisassembly);
     connect(ui->actionExtraHexdump, &QAction::triggered, this, &MainWindow::addExtraHexdump);
@@ -156,6 +157,8 @@ void MainWindow::initUI()
     widgetTypeToConstructorMap.insert(DisassemblyWidget::getWidgetType(),
                                       getNewInstance<DisassemblyWidget>);
     widgetTypeToConstructorMap.insert(HexdumpWidget::getWidgetType(), getNewInstance<HexdumpWidget>);
+    widgetTypeToConstructorMap.insert(DecompilerWidget::getWidgetType(),
+                                      getNewInstance<DecompilerWidget>);
 
     initToolBar();
     initDocks();
@@ -236,8 +239,21 @@ void MainWindow::initUI()
     connect(ui->actionDocumentation, &QAction::triggered, this, &MainWindow::documentationClicked);
 
     /* Setup plugins interfaces */
-    for (auto &plugin : Plugins()->getPlugins()) {
+    const auto &plugins = Plugins()->getPlugins();
+    for (auto &plugin : plugins) {
         plugin->setupInterface(this);
+    }
+
+    // Check if plugins are loaded and display tooltips accordingly
+    ui->menuWindows->setToolTipsVisible(true);
+    if (plugins.empty()) {
+        ui->menuPlugins->menuAction()->setToolTip(
+                tr("No plugins are installed. Check the plugins section on Cutter documentation to learn more."));
+        ui->menuPlugins->setEnabled(false);
+    } else if (ui->menuPlugins->isEmpty()) {
+        ui->menuPlugins->menuAction()->setToolTip(
+                tr("The installed plugins didn't add entries to this menu."));
+        ui->menuPlugins->setEnabled(false);
     }
 
 #if QT_VERSION < QT_VERSION_CHECK(5, 7, 0)
@@ -334,7 +350,6 @@ void MainWindow::initToolBar()
 void MainWindow::initDocks()
 {
     dockWidgets.reserve(20);
-    decompilerDock = new DecompilerWidget(this);
     consoleDock = new ConsoleWidget(this);
 
     overviewDock = new OverviewWidget(this);
@@ -402,7 +417,6 @@ void MainWindow::initDocks()
         dashboardDock,
         nullptr,
         functionsDock,
-        decompilerDock,
         overviewDock,
         nullptr,
         searchDock,
@@ -410,7 +424,7 @@ void MainWindow::initDocks()
         typesDock,
         nullptr,
     };
-    ui->menuWindows->insertActions(ui->actionExtraDisassembly, makeActionList(windowDocks));
+    ui->menuWindows->insertActions(ui->actionExtraDecompiler, makeActionList(windowDocks));
     QList<CutterDockWidget *> windowDocks2 = {
         consoleDock,
         commentsDock,
@@ -459,6 +473,12 @@ void MainWindow::addExtraHexdump()
 void MainWindow::addExtraDisassembly()
 {
     auto *extraDock = new DisassemblyWidget(this);
+    addExtraWidget(extraDock);
+}
+
+void MainWindow::addExtraDecompiler()
+{
+    auto *extraDock = new DecompilerWidget(this);
     addExtraWidget(extraDock);
 }
 
@@ -636,7 +656,12 @@ void MainWindow::finalizeOpen()
         auto disasmWidget = qobject_cast<DisassemblyWidget *>(dockWidget);
         if (disasmWidget && dockWidget->isVisibleToUser()) {
             disasmWidget->raiseMemoryWidget();
-            // continue looping in case there is a graph wiget
+            // continue looping in case there is a graph widget
+        }
+        auto decompilerWidget = qobject_cast<DecompilerWidget *>(dockWidget);
+        if (decompilerWidget && dockWidget->isVisibleToUser()) {
+            decompilerWidget->raiseMemoryWidget();
+            // continue looping in case there is a graph widget
         }
     }
 }
@@ -807,7 +832,6 @@ void MainWindow::restoreDocks()
     splitDockWidget(functionsDock, overviewDock, Qt::Vertical);
 
     // main area
-    tabifyDockWidget(dashboardDock, decompilerDock);
     tabifyDockWidget(dashboardDock, entrypointDock);
     tabifyDockWidget(dashboardDock, flagsDock);
     tabifyDockWidget(dashboardDock, stringsDock);
@@ -868,7 +892,8 @@ bool MainWindow::isExtraMemoryWidget(QDockWidget *dock) const
 {
     return qobject_cast<GraphWidget*>(dock) ||
             qobject_cast<HexdumpWidget*>(dock) ||
-            qobject_cast<DisassemblyWidget*>(dock);
+            qobject_cast<DisassemblyWidget*>(dock) ||
+            qobject_cast<DecompilerWidget*>(dock);
 }
 
 MemoryWidgetType MainWindow::getMemoryWidgetTypeToRestore()
@@ -927,12 +952,19 @@ void MainWindow::showMemoryWidget(MemoryWidgetType type)
     memoryDockWidget->raiseMemoryWidget();
 }
 
-QMenu *MainWindow::createShowInMenu(QWidget *parent, RVA address)
+QMenu *MainWindow::createShowInMenu(QWidget *parent, RVA address,  AddressTypeHint addressType)
 {
     QMenu *menu = new QMenu(parent);
     // Memory dock widgets
     for (auto &dock : dockWidgets) {
         if (auto memoryWidget = qobject_cast<MemoryDockWidget *>(dock)) {
+            if (memoryWidget->getType() == MemoryWidgetType::Graph
+                    || memoryWidget->getType() == MemoryWidgetType::Decompiler)
+            {
+                if (addressType == AddressTypeHint::Data) {
+                    continue;
+                }
+            }
             QAction *action = new QAction(memoryWidget->windowTitle(), menu);
             connect(action, &QAction::triggered, this, [memoryWidget, address]() {
                 memoryWidget->getSeekable()->seek(address);
@@ -965,9 +997,11 @@ QMenu *MainWindow::createShowInMenu(QWidget *parent, RVA address)
         menu->addAction(action);
     };
     createAddNewWidgetAction(tr("New disassembly"), MemoryWidgetType::Disassembly);
-    createAddNewWidgetAction(tr("New graph"), MemoryWidgetType::Graph);
+    if (addressType != AddressTypeHint::Data) {
+        createAddNewWidgetAction(tr("New graph"), MemoryWidgetType::Graph);
+    }
     createAddNewWidgetAction(tr("New hexdump"), MemoryWidgetType::Hexdump);
-
+    createAddNewWidgetAction(tr("New Decompiler"), MemoryWidgetType::Decompiler);
     return menu;
 }
 
@@ -1315,7 +1349,8 @@ void MainWindow::setViewLayout(const CutterLayout &layout)
         docksToCreate = QStringList {
             DisassemblyWidget::getWidgetType(),
             GraphWidget::getWidgetType(),
-            HexdumpWidget::getWidgetType()
+            HexdumpWidget::getWidgetType(),
+            DecompilerWidget::getWidgetType()
         };
     } else {
         docksToCreate = layout.viewProperties.keys();
@@ -1559,8 +1594,10 @@ void MainWindow::on_actionRefresh_contents_triggered()
 
 void MainWindow::on_actionPreferences_triggered()
 {
-    auto dialog = new PreferencesDialog(this);
-    dialog->show();
+    if (!findChild<PreferencesDialog*>()) {
+        auto dialog = new PreferencesDialog(this);
+        dialog->show();
+    }
 }
 
 void MainWindow::on_actionTabs_triggered()

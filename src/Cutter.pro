@@ -3,7 +3,7 @@ TEMPLATE = app
 TARGET = Cutter
 
 CUTTER_VERSION_MAJOR = 1
-CUTTER_VERSION_MINOR = 11
+CUTTER_VERSION_MINOR = 12
 CUTTER_VERSION_PATCH = 0
 
 VERSION = $${CUTTER_VERSION_MAJOR}.$${CUTTER_VERSION_MINOR}.$${CUTTER_VERSION_PATCH}
@@ -336,6 +336,7 @@ SOURCES += \
     widgets/StringsWidget.cpp \
     widgets/SymbolsWidget.cpp \
     menus/DisassemblyContextMenu.cpp \
+    menus/DecompilerContextMenu.cpp \
     widgets/DisassemblyWidget.cpp \
     widgets/HexdumpWidget.cpp \
     common/Configuration.cpp \
@@ -439,7 +440,8 @@ SOURCES += \
     widgets/R2GraphWidget.cpp \
     widgets/CallGraph.cpp \
     widgets/AddressableDockWidget.cpp \
-    dialogs/preferences/AnalOptionsWidget.cpp
+    dialogs/preferences/AnalOptionsWidget.cpp \
+    common/DecompilerHighlighter.cpp
 
 GRAPHVIZ_SOURCES = \
     widgets/GraphvizLayout.cpp
@@ -485,6 +487,7 @@ HEADERS  += \
     widgets/StringsWidget.h \
     widgets/SymbolsWidget.h \
     menus/DisassemblyContextMenu.h \
+    menus/DecompilerContextMenu.h \
     widgets/DisassemblyWidget.h \
     widgets/HexdumpWidget.h \
     common/Configuration.h \
@@ -597,7 +600,8 @@ HEADERS  += \
     widgets/R2GraphWidget.h \
     widgets/CallGraph.h \
     widgets/AddressableDockWidget.h \
-    dialogs/preferences/AnalOptionsWidget.h
+    dialogs/preferences/AnalOptionsWidget.h \
+    common/DecompilerHighlighter.h
 
 GRAPHVIZ_HEADERS = widgets/GraphvizLayout.h
 

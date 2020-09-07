@@ -48,13 +48,12 @@ DisassemblyWidget::DisassemblyWidget(MainWindow *main)
     setObjectName(main
                   ? main->getUniqueObjectName(getWidgetType())
                   : getWidgetType());
+    updateWindowTitle();
 
     topOffset = bottomOffset = RVA_INVALID;
     cursorLineOffset = 0;
     cursorCharOffset = 0;
     seekFromCursor = false;
-
-    setWindowTitle(getWindowTitle());
 
     // Instantiate the window layout
     auto *splitter = new QSplitter;
@@ -145,18 +144,14 @@ DisassemblyWidget::DisassemblyWidget(MainWindow *main)
         }
     });
 
-    connect(Core(), SIGNAL(commentsChanged()), this, SLOT(refreshDisasm()));
+    connect(Core(), &CutterCore::commentsChanged, this, [this]() {refreshDisasm();});
     connect(Core(), SIGNAL(flagsChanged()), this, SLOT(refreshDisasm()));
     connect(Core(), SIGNAL(functionsChanged()), this, SLOT(refreshDisasm()));
-    connect(Core(), SIGNAL(functionRenamed(const QString &, const QString &)), this,
-            SLOT(refreshDisasm()));
+    connect(Core(), &CutterCore::functionRenamed, this, [this]() {refreshDisasm();});
     connect(Core(), SIGNAL(varsChanged()), this, SLOT(refreshDisasm()));
     connect(Core(), SIGNAL(asmOptionsChanged()), this, SLOT(refreshDisasm()));
-    connect(Core(), &CutterCore::instructionChanged, this, [this](RVA offset) {
-        if (offset >= topOffset && offset <= bottomOffset) {
-            refreshDisasm();
-        }
-    });
+    connect(Core(), &CutterCore::instructionChanged, this, &DisassemblyWidget::refreshIfInRange);
+    connect(Core(), &CutterCore::breakpointsChanged, this, &DisassemblyWidget::refreshIfInRange);
     connect(Core(), SIGNAL(refreshCodeViews()), this, SLOT(refreshDisasm()));
 
     connect(Config(), &Configuration::fontsUpdated, this, &DisassemblyWidget::fontsUpdatedSlot);
@@ -248,6 +243,13 @@ QFontMetrics DisassemblyWidget::getFontMetrics()
 QList<DisassemblyLine> DisassemblyWidget::getLines()
 {
     return lines;
+}
+
+void DisassemblyWidget::refreshIfInRange(RVA offset)
+{
+    if (offset >= topOffset && offset <= bottomOffset) {
+        refreshDisasm();
+    }
 }
 
 void DisassemblyWidget::refreshDisasm(RVA offset)
