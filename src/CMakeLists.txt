@@ -24,6 +24,7 @@ set(CUTTER_EXTRA_PLUGIN_DIRS "" CACHE STRING "List of addition plugin locations"
 option(CUTTER_ENABLE_DEPENDENCY_DOWNLOADS "Enable downloading of dependencies. Setting to OFF doesn't affect any downloads done by r2 build." OFF)
 option(CUTTER_PACKAGE_DEPENDENCIES "During install step include the third party dependencies." OFF)
 option(CUTTER_PACKAGE_R2GHIDRA "Compile and install r2ghidra during install step." OFF)
+option(CUTTER_PACKAGE_R2DEC "Compile and install r2dec during install step." OFF)
 
 if(NOT CUTTER_ENABLE_PYTHON)
     set(CUTTER_ENABLE_PYTHON_BINDINGS OFF)
@@ -168,6 +169,11 @@ if (TARGET Graphviz::GVC)
     list(APPEND HEADER_FILES ${CUTTER_PRO_GRAPHVIZ_HEADERS})
 endif()
 
+if (WIN32)
+    set(PLATFORM_RESOURCES "img/cutter.rc")
+else()
+    set(PLATFORM_RESOURCES "")
+endif()
 
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
         OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
@@ -176,7 +182,7 @@ if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
 endif()
 
 
-add_executable(Cutter MACOSX_BUNDLE ${UI_FILES} ${QRC_FILES} ${SOURCE_FILES} ${HEADER_FILES} ${BINDINGS_SOURCE})
+add_executable(Cutter MACOSX_BUNDLE ${UI_FILES} ${QRC_FILES} ${PLATFORM_RESOURCES} ${SOURCE_FILES} ${HEADER_FILES} ${BINDINGS_SOURCE})
 set_target_properties(Cutter PROPERTIES
         ENABLE_EXPORTS ON
         CXX_VISIBILITY_PRESET hidden
@@ -261,6 +267,10 @@ endif()
 
 if (CUTTER_APPIMAGE_BUILD)
     target_compile_definitions(Cutter PRIVATE APPIMAGE)
+endif()
+
+if (CUTTER_PACKAGE_R2DEC)
+    target_compile_definitions(Cutter PRIVATE CUTTER_APPVEYOR_R2DEC)
 endif()
 
 include(Translations)
