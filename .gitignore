@@ -76,6 +76,7 @@ __pycache__
 # Other
 compile_commands.json
 .ccls-cache
+.cache
 docs/source/_build
 
 # vscode
@@ -94,3 +95,6 @@ src/out
 
 # astyle backup .orig files
 *.orig
+
+# Gdb's history
+.gdb_history

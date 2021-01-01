@@ -16,6 +16,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QInputDialog>
+#include <QActionGroup>
 
 namespace {
 
@@ -136,6 +137,8 @@ QVariant FunctionModel::data(const QModelIndex &index, int role) const
                     return tr("Edges: %1").arg(function.edges);
                 case 8:
                     return tr("StackFrame: %1").arg(function.stackframe);
+                case 9:
+                    return tr("Comment: %1").arg(Core()->getCommentAt(function.offset));
                 default:
                     return QVariant();
                 }
@@ -161,6 +164,8 @@ QVariant FunctionModel::data(const QModelIndex &index, int role) const
                 return QString::number(function.edges);
             case FrameColumn:
                 return QString::number(function.stackframe);
+            case CommentColumn:
+                return Core()->getCommentAt(function.offset);
             default:
                 return QVariant();
             }
@@ -268,6 +273,8 @@ QVariant FunctionModel::headerData(int section, Qt::Orientation orientation, int
                 return tr("Edges");
             case FrameColumn:
                 return tr("StackFrame");
+            case CommentColumn:
+                return tr("Comment");
             default:
                 return QVariant();
             }
@@ -416,6 +423,8 @@ bool FunctionSortFilterProxyModel::lessThan(const QModelIndex &left, const QMode
             if (left_function.stackframe != right_function.stackframe)
                 return left_function.stackframe < right_function.stackframe;
             break;
+        case FunctionModel::CommentColumn:
+            return Core()->getCommentAt(left_function.offset) < Core()->getCommentAt(right_function.offset);
         default:
             return false;
         }
@@ -482,6 +491,9 @@ FunctionsWidget::FunctionsWidget(MainWindow *main) :
     connect(Core(), &CutterCore::functionsChanged, this, &FunctionsWidget::refreshTree);
     connect(Core(), &CutterCore::codeRebased, this, &FunctionsWidget::refreshTree);
     connect(Core(), &CutterCore::refreshAll, this, &FunctionsWidget::refreshTree);
+    connect(Core(), &CutterCore::commentsChanged, this, [this]() {
+        qhelpers::emitColumnChanged(functionModel, FunctionModel::CommentColumn);
+    });
 }
 
 FunctionsWidget::~FunctionsWidget() {}
@@ -532,7 +544,7 @@ void FunctionsWidget::onActionFunctionsRenameTriggered()
                             tr("Function name:"), QLineEdit::Normal, function.name, &ok);
     // If user accepted
     if (ok && !newName.isEmpty()) {
-        // Rename function in r2 core
+        // Rename function in rizin core
         Core()->renameFunction(function.offset, newName);
 
         // Seek to new renamed function

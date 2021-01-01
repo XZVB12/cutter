@@ -34,7 +34,7 @@ const QStringList ColorThemeWorker::cutterSpecificOptions = {
     "gui.disass_selected"
 };
 
-const QStringList ColorThemeWorker::radare2UnusedOptions = {
+const QStringList ColorThemeWorker::rizinUnusedOptions = {
     "linehl",
     "wordhl",
     "graph.box",
@@ -59,25 +59,25 @@ const QStringList ColorThemeWorker::radare2UnusedOptions = {
 
 ColorThemeWorker::ColorThemeWorker(QObject *parent) : QObject (parent)
 {
-    char* szThemes = r_str_home(R2_HOME_THEMES);
-    customR2ThemesLocationPath = szThemes;
-    r_mem_free(szThemes);
-    if (!QDir(customR2ThemesLocationPath).exists()) {
-        QDir().mkpath(customR2ThemesLocationPath);
+    char* szThemes = rz_str_home(RZ_HOME_THEMES);
+    customRzThemesLocationPath = szThemes;
+    rz_mem_free(szThemes);
+    if (!QDir(customRzThemesLocationPath).exists()) {
+        QDir().mkpath(customRzThemesLocationPath);
     }
 
     QDir currDir { QStringLiteral("%1%2%3")
-        .arg(r_sys_prefix(nullptr))
-        .arg(R_SYS_DIR)
-        .arg(R2_THEMES)
+        .arg(rz_sys_prefix(nullptr))
+        .arg(RZ_SYS_DIR)
+        .arg(RZ_THEMES)
     };
     if (currDir.exists()) {
-        standardR2ThemesLocationPath = currDir.absolutePath();
+        standardRzThemesLocationPath = currDir.absolutePath();
     } else {
         QMessageBox::critical(nullptr,
             tr("Standard themes not found"),
-            tr("The radare2 standard themes could not be found in '%1'. "
-               "Most likely, radare2 is not properly installed.")
+            tr("The Rizin standard themes could not be found in '%1'. "
+               "Most likely, Rizin is not properly installed.")
                 .arg(currDir.path())
         );
     }
@@ -115,7 +115,7 @@ QString ColorThemeWorker::copy(const QString &srcThemeName,
 
 QString ColorThemeWorker::save(const QJsonDocument &theme, const QString &themeName) const
 {
-    QFile fOut(QDir(customR2ThemesLocationPath).filePath(themeName));
+    QFile fOut(QDir(customRzThemesLocationPath).filePath(themeName));
     if (!fOut.open(QFile::WriteOnly | QFile::Truncate)) {
         return tr("The file <b>%1</b> cannot be opened.")
                 .arg(QFileInfo(fOut).filePath());
@@ -152,7 +152,7 @@ QString ColorThemeWorker::save(const QJsonDocument &theme, const QString &themeN
 
 bool ColorThemeWorker::isCustomTheme(const QString &themeName) const
 {
-    return QFile::exists(QDir(customR2ThemesLocationPath).filePath(themeName));
+    return QFile::exists(QDir(customRzThemesLocationPath).filePath(themeName));
 }
 
 bool ColorThemeWorker::isThemeExist(const QString &name) const
@@ -192,7 +192,7 @@ QJsonDocument ColorThemeWorker::getTheme(const QString& themeName) const
     }
 
     if (isCustomTheme(themeName)) {
-        QFile src(QDir(customR2ThemesLocationPath).filePath(themeName));
+        QFile src(QDir(customRzThemesLocationPath).filePath(themeName));
         if (!src.open(QFile::ReadOnly)) {
             return QJsonDocument();
         }
@@ -207,7 +207,7 @@ QJsonDocument ColorThemeWorker::getTheme(const QString& themeName) const
         }
     }
 
-    for (auto &key : radare2UnusedOptions) {
+    for (auto &key : rizinUnusedOptions) {
         theme.remove(key);
     }
 
@@ -231,13 +231,13 @@ QJsonDocument ColorThemeWorker::getTheme(const QString& themeName) const
 QString ColorThemeWorker::deleteTheme(const QString &themeName) const
 {
     if (!isCustomTheme(themeName)) {
-        return tr("You can not delete standard radare2 color themes.");
+        return tr("You can not delete standard Rizin color themes.");
     }
     if (!isThemeExist(themeName)) {
         return tr("Theme <b>%1</b> does not exist.").arg(themeName);
     }
 
-    QFile file(QDir(customR2ThemesLocationPath).filePath(themeName));
+    QFile file(QDir(customRzThemesLocationPath).filePath(themeName));
     if (file.isWritable()) {
         return tr("You have no permission to write to <b>%1</b>")
                 .arg(QFileInfo(file).filePath());
@@ -275,7 +275,7 @@ QString ColorThemeWorker::importTheme(const QString& file) const
         return tr("A color theme named <b>%1</b> already exists.").arg(name);
     }
 
-    if (QFile::copy(file, QDir(customR2ThemesLocationPath).filePath(name))) {
+    if (QFile::copy(file, QDir(customRzThemesLocationPath).filePath(name))) {
          return "";
      } else {
          return tr("Error occurred during importing. "
@@ -292,10 +292,10 @@ QString ColorThemeWorker::renameTheme(const QString& themeName, const QString& n
      }
 
      if (!isCustomTheme(themeName)) {
-         return tr("You can not rename standard radare2 themes.");
+         return tr("You can not rename standard Rizin themes.");
      }
 
-     QDir dir = customR2ThemesLocationPath;
+     QDir dir = customRzThemesLocationPath;
      bool ok = QFile::rename(dir.filePath(themeName), dir.filePath(newName));
      if (!ok) {
          return tr("Something went wrong during renaming. "

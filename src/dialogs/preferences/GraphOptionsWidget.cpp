@@ -15,11 +15,13 @@ GraphOptionsWidget::GraphOptionsWidget(PreferencesDialog *dialog)
 {
     ui->setupUi(this);
     ui->checkTransparent->setChecked(Config()->getBitmapTransparentState());
+    ui->blockEntryCheckBox->setChecked(Config()->getGraphBlockEntryOffset());
     ui->bitmapGraphScale->setValue(Config()->getBitmapExportScaleFactor()*100.0);
     updateOptionsFromVars();
 
     connect<void(QDoubleSpinBox::*)(double)>(ui->bitmapGraphScale, (&QDoubleSpinBox::valueChanged), this, &GraphOptionsWidget::bitmapGraphScaleValueChanged);
     connect(ui->checkTransparent, &QCheckBox::stateChanged, this, &GraphOptionsWidget::checkTransparentStateChanged);
+    connect(ui->blockEntryCheckBox, &QCheckBox::stateChanged, this, &GraphOptionsWidget::checkGraphBlockEntryOffsetChanged);
 
     connect(Core(), &CutterCore::graphOptionsChanged, this, &GraphOptionsWidget::updateOptionsFromVars);
     QSpinBox* graphSpacingWidgets[] = {
@@ -41,6 +43,9 @@ void GraphOptionsWidget::updateOptionsFromVars()
     ui->maxColsSpinBox->blockSignals(true);
     ui->maxColsSpinBox->setValue(Config()->getGraphBlockMaxChars());
     ui->maxColsSpinBox->blockSignals(false);
+    ui->minFontSizeSpinBox->blockSignals(true);
+    ui->minFontSizeSpinBox->setValue(Config()->getGraphMinFontSize());
+    ui->minFontSizeSpinBox->blockSignals(false);
     auto blockSpacing = Config()->getGraphBlockSpacing();
     ui->horizontalBlockSpacing->setValue(blockSpacing.x());
     ui->verticalBlockSpacing->setValue(blockSpacing.y());
@@ -60,6 +65,12 @@ void GraphOptionsWidget::triggerOptionsChanged()
 void GraphOptionsWidget::on_maxColsSpinBox_valueChanged(int value)
 {
     Config()->setGraphBlockMaxChars(value);
+    triggerOptionsChanged();
+}
+
+void GraphOptionsWidget::on_minFontSizeSpinBox_valueChanged(int value)
+{
+    Config()->setGraphMinFontSize(value);
     triggerOptionsChanged();
 }
 
@@ -89,3 +100,8 @@ void GraphOptionsWidget::layoutSpacingChanged()
     triggerOptionsChanged();
 }
 
+void GraphOptionsWidget::checkGraphBlockEntryOffsetChanged(bool checked)
+{
+    Config()->setGraphBlockEntryOffset(checked);
+    triggerOptionsChanged();
+}

@@ -30,10 +30,12 @@ private slots:
     void updateOptionsFromVars();
 
     void on_maxColsSpinBox_valueChanged(int value);
+    void on_minFontSizeSpinBox_valueChanged(int value);
     void on_graphOffsetCheckBox_toggled(bool checked);
 
     void checkTransparentStateChanged(int checked);
     void bitmapGraphScaleValueChanged(double value);
+    void checkGraphBlockEntryOffsetChanged(bool checked);
     void layoutSpacingChanged();
 };
 
