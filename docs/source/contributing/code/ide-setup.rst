@@ -32,9 +32,6 @@ Qt Creator
 ----------
 QT Creator is an open-source IDE made by the same developers as Qt.
 
-Even though Cutter has qmake project cutter.pro it is recommended to use the CMake project in QTCreator.
-QTCreator support for CMake is as good as qmake one but not all Cutter project configuration options are available in qmake project and in future Cutter qmake project might be removed.
-
 Pros and Cons
 ~~~~~~~~~~~~~
 
@@ -48,17 +45,18 @@ Project setup
 ~~~~~~~~~~~~~
 The following instructions were made based on version 4.12.4 of Qt Creator. The steps might slightly differ between the versions.
 
-- Go to :menuselection:`File --> Open File or Project..` and select :file:`cutter/src/CMakeList.txt`
+- Go to :menuselection:`File --> Open File or Project..` and select :file:`cutter/CMakeList.txt`
 - Select kit and press :guilabel:`Configure Project`
 - Configuration step might fail due to Rizin not being found, that's normal
 - Click :guilabel:`Projects` button with wrench icon on the left side of the screen
 - Click :menuselection:`Add --> Boolean` in the CMake section
 - Enter ``CUTTER_USE_BUNDLED_RIZIN`` as a key name and change the value to ON. In earlier Qt Creator versions it is necessary to do this during the initial kit selection and configuration step.
-- Click :guilabel:`Apply Configuration Changes`:. The configuration should succeed now. In case of errors inspect the output log.
+- Click :guilabel:`Apply Configuration Changes`: The configuration should succeed now. In case of errors inspect the output log.
 
-Either in :menuselection:`Projects --> Code Style --> C++` or :menuselection:`Tools --> Options --> C++ --> Code Style` select :guilabel:`Qt [built-in]`. It should be selected by default unless you have used Qt Creator for other projects. Cutter Coding style is almost identical to Qt one. This will help with using correct indentation type and basic formatting without running code formatter.
 
-To configure AStyle for formatting a file go to :menuselection:`Tools --> Options --> Beautifier --> Artistic Style`. If necessary, specify the path to astyle executable. The :guilabel:`Use file \*.astylerc defined in project files` option doesn't seem to be working reliably so it is necessary to use :guilabel:`Use specific config file` option. Cutter astyle configuration is stored in :file:`cutter/src/Cutter.astylerc`.
+Formatting using clang-format
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+To configure ``clang-format`` for formatting a file you will need to use the built-in Beautifier plugin. `Follow the instructions <https://doc.qt.io/qtcreator/creator-beautifier.html>`_ on Qt Creator's website to enable the plugin and configure it to run ``clang-format`` when saving a file. In the clang-format options page choose "Use predefined style: File".
 
 Changing CMake configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -101,6 +99,10 @@ After the first configuration :kbd:`Ctrl-Shift-P`/:guilabel:`CMake: Edit CMake C
 
 .. _vscode-debug-setup:
 
+Formatting using clang-format
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+The C/C++ extension we recommended earlier supports source code formatting using clang-format which is included with the extension. Use :kbd:`Ctrl-Shift-I` to format the document or :kbd:`Ctrl-K Ctrl-F` to only format the selection. We recommend to configure auto-formatting via the settings. `Follow the instructions <https://code.visualstudio.com/docs/cpp/cpp-ide#_code-formatting>`_ on VS Code's website.
+
 Building, Running, Debugging
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Build and running commands are available in the status bar at the bottom and in the Command Palette menu (:kbd:`Ctrl-Shift-P`) named ``CMake: Build F7``, ``CMake: Run Without Debugging Shift+F5``, and ``CMake Debug Ctrl + F5``.
@@ -141,12 +143,16 @@ Project setup
 ~~~~~~~~~~~~~
 - Go to :menuselection:`File --> Open` and select the folder in which you cloned Cutter
 - Go to :menuselection:`File --> Settings --> Build, Execution, Deployment --> CMake`. In the :guilabel:`CMake Options` field enter ``-DCUTTER_USE_BUNDLED_RIZIN=ON``
-- Open :file:`cutter/src/CMakeLists.txt` using the project file list on the left side of the screen
+- Open :file:`cutter/CMakeLists.txt` using the project file list on the left side of the screen
 - A yellow bar with a message :guilabel:`CMake project is not loaded` should appear, click :guilabel:`Load CMake project`
 
 Changing CMake configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Go to :menuselection:`File --> Settings --> Build,Execution,Deployment --> CMake`. CMake options are specified the same way as on command-line ``-DOPTION_NAME=VALUE``.
+
+Formatting using clang-format
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Clion provides you with an easy way to format files with ``clang-format``. Follow the `documentation <https://www.jetbrains.com/help/clion/clangformat-as-alternative-formatter.html>`_ on their website to learn how to enable formatting with ``clang-format``.
 
 Building, Running, Debugging
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -191,6 +197,10 @@ Project setup
 Changing CMake configuration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 Open :menuselection:`Project --> CMake Settings`. CMake options can be modified either in graphical table editor, as a command-line flag or by switching to the JSON view.
+
+Formatting using clang-format
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Visual Studio supports ``clang-format`` by default so you should not do anything special. It will simple use the existing ``_clang-format`` file from Cutter's root directory. If you wish to configure how and when Visual Studio will use ``clang-format``, you can do this from :menuselection:`Tools --> Options --> Text Editor --> C/C++ --> Formatting`.
 
 Editing Qt .ui files and Qt integration
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
