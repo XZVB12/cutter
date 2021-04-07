@@ -71,8 +71,13 @@ int main(int argc, char *argv[])
     qRegisterMetaType<QList<FunctionDescription>>();
 
     QCoreApplication::setOrganizationName("rizin");
-    QCoreApplication::setOrganizationDomain("rizin.re");
     QCoreApplication::setApplicationName("cutter");
+
+    // Importing settings after setting rename, needs separate handling in addition to regular version to version upgrade.
+    if (Cutter::shouldOfferSettingImport())
+    {
+        Cutter::showSettingImportDialog(argc, argv);
+    }
 
     Cutter::initializeSettings();
 

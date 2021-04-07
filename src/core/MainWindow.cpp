@@ -591,7 +591,13 @@ void MainWindow::displayInitialOptionsDialog(const InitialOptions &options, bool
     o->loadOptions(options);
 
     if (skipOptionsDialog) {
-        o->setupAndStartAnalysis();
+        if (!options.projectFile.isEmpty()) {
+            if (!openProject(options.projectFile)) {
+                displayNewFileDialog();
+            };
+        } else {
+            o->setupAndStartAnalysis();
+        }
     } else {
         o->show();
     }
@@ -694,11 +700,16 @@ RzProjectErr MainWindow::saveProject(bool *canceled)
 
 RzProjectErr MainWindow::saveProjectAs(bool *canceled)
 {
-    QString dir = core->getConfig("prj.file");
-    if (dir.isEmpty()) {
-        dir = QDir(filename).dirName();
+    QString projectFile = core->getConfig("prj.file");
+    if (projectFile.isEmpty()) {
+        // preferred name is of fromat 'binary.exe.rzdb'
+        projectFile = QString("%1.%2").arg(filename).arg("rzdb");
     }
-    QString file = QFileDialog::getSaveFileName(this, tr("Save Project"), dir, PROJECT_FILE_FILTER);
+
+    QFileDialog fileDialog(this);
+    // Append 'rzdb' suffix if it does not exist
+    fileDialog.setDefaultSuffix("rzdb");
+    QString file = fileDialog.getSaveFileName(this, tr("Save Project"), projectFile, PROJECT_FILE_FILTER);
     if (file.isEmpty()) {
         if (canceled) {
             *canceled = true;

@@ -10,7 +10,7 @@ include(Utils)
 
 set(CUTTER_PYTHON_MIN 3.5)
 
-option(CUTTER_USE_BUNDLED_RIZIN "Use rizin from src/rizin submodule instead of searching for it on the system" OFF)
+option(CUTTER_USE_BUNDLED_RIZIN "Use rizin from ./rizin submodule instead of searching for it on the system" ON)
 option(CUTTER_USE_ADDITIONAL_RIZIN_PATHS "Search rizin in additional paths which are not part of default system library paths.\
  Disable this option if you are linking against rizin pacakged as proper system library or in a custom path and additional are paths causing problems." ON)
 option(CUTTER_ENABLE_PYTHON "Enable Python integration. Requires Python >= ${CUTTER_PYTHON_MIN}." OFF)
@@ -32,8 +32,8 @@ if(NOT CUTTER_ENABLE_PYTHON)
     set(CUTTER_ENABLE_PYTHON_BINDINGS OFF)
 endif()
 
-set(CUTTER_VERSION_MAJOR 1)
-set(CUTTER_VERSION_MINOR 12)
+set(CUTTER_VERSION_MAJOR 2)
+set(CUTTER_VERSION_MINOR 0)
 set(CUTTER_VERSION_PATCH 0)
 
 set(CUTTER_VERSION_FULL "${CUTTER_VERSION_MAJOR}.${CUTTER_VERSION_MINOR}.${CUTTER_VERSION_PATCH}")

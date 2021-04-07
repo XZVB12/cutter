@@ -1248,7 +1248,7 @@ QString CutterCore::createFunctionAt(RVA addr)
 
 QString CutterCore::createFunctionAt(RVA addr, QString name)
 {
-    static const QRegularExpression regExp("[^a-zA-Z0-9_]");
+    static const QRegularExpression regExp("[^a-zA-Z0-9_.]");
     name.remove(regExp);
     QString ret = cmdRawAt(QString("af %1").arg(name), addr);
     emit functionsChanged();
@@ -1508,7 +1508,7 @@ QJsonObject CutterCore::getAddrRefs(RVA addr, int depth)
     }
 
     // Try to telescope further if depth permits it
-    if ((type & RZ_ANALYSIS_ADDR_TYPE_READ) && !(type & RZ_ANALYSIS_ADDR_TYPE_EXEC)) {
+    if ((type & RZ_ANALYSIS_ADDR_TYPE_READ)) {
         buf.resize(64);
         ut32 *n32 = (ut32 *)buf.data();
         ut64 *n64 = (ut64 *)buf.data();
@@ -1517,7 +1517,7 @@ QJsonObject CutterCore::getAddrRefs(RVA addr, int depth)
         // The value of the next address will serve as an indication that there's more to
         // telescope if we have reached the depth limit
         json["value"] = QString::number(n);
-        if (depth && n != addr) {
+        if (depth && n != addr && !(type & RZ_ANALYSIS_ADDR_TYPE_EXEC)) {
             // Make sure we aren't telescoping the same address
             QJsonObject ref = getAddrRefs(n, depth - 1);
             if (!ref.empty() && !ref["type"].isNull()) {
@@ -3742,8 +3742,8 @@ QString CutterCore::nearestFlag(RVA offset, RVA *flagOffsetOut)
     auto r = cmdj(QString("fdj @") + QString::number(offset)).object();
     QString name = r.value("name").toString();
     if (flagOffsetOut) {
-        int queryOffset = r.value("offset").toInt(0);
-        *flagOffsetOut = offset + static_cast<RVA>(-queryOffset);
+        auto offsetValue = r.value("offset");
+        *flagOffsetOut = offsetValue.isUndefined() ? offset : offsetValue.toVariant().toULongLong();
     }
     return name;
 }
@@ -3890,6 +3890,12 @@ void CutterCore::loadScript(const QString &scriptname)
     triggerRefreshAll();
 }
 
+QString CutterCore::getRizinVersionReadable()
+{
+    return QString("%1 (%2)").arg(QString::fromUtf8(RZ_VERSION),
+                                  QString::fromUtf8(RZ_GITTIP).left(7));
+}
+
 QString CutterCore::getVersionInformation()
 {
     int i;
@@ -3924,7 +3930,7 @@ QString CutterCore::getVersionInformation()
         /* ... */
         { NULL, NULL }
     };
-    versionInfo.append(QString("%1 rz\n").arg(RZ_GITTAP));
+    versionInfo.append(QString("%1 rz\n").arg(getRizinVersionReadable()));
     for (i = 0; vcs[i].name; i++) {
         struct vcs_t *v = &vcs[i];
         const char *name = v->callback();
